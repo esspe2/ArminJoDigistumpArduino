@@ -3,6 +3,7 @@
  *
  * TODO: Make a proper file header. :-)
  * Modified for Digispark by Digistump
+ * Version working with belgian keyboards
  */
 #ifndef __DigiKeyboard_h__
 #define __DigiKeyboard_h__
@@ -201,12 +202,13 @@ class DigiKeyboardDevice : public Print {
   }
   
   size_t write(uint8_t chr) {
+    // Scan codes which use 7 bits
     if(chr == '<')
-      sendKeyStroke(100);
+      sendKeyStroke(0x64);
     else if(chr == '>')
-      sendKeyStroke(100, MOD_SHIFT_RIGHT);
+      sendKeyStroke(0x64, MOD_SHIFT_RIGHT);
     else if(chr == '\\')
-      sendKeyStroke(100, MOD_ALT_RIGHT);
+      sendKeyStroke(0x64, MOD_ALT_RIGHT);
 
     else
     {

@@ -9,7 +9,7 @@
 #define AltGr 0x40
 
 const unsigned char ascii_to_scan_code_table[] PROGMEM = {
-  //      ASCII	Code	  HID Usage	Key pos on a US Keyboard
+  //          Code	   HID Usage	Key pos on a US Keyboard
   // /* ASCII: 0  	*/ 0,
   // /* ASCII: 1  	*/ 0,
   // /* ASCII: 2  	*/ 0,
