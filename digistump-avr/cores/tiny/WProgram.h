@@ -13,6 +13,12 @@
 #include "pins_arduino.h"
 
 #ifdef __cplusplus
+extern "C"{
+void yield(void);
+}
+#endif
+
+#ifdef __cplusplus
 #include "WCharacter.h"
 #include "WString.h"
 #include "TinyDebugSerial.h"

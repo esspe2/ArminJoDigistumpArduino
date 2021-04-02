@@ -32,6 +32,26 @@
 
 #include "core_build_options.h"
 
+///////////////////////////////
+// Additions from ATTiny core
+#  define DDR_USI DDRB
+#  define PORT_USI PORTB
+#  define PIN_USI PINB
+#  define PORT_USI_SDA PORTB0
+#  define PORT_USI_SCL PORTB2
+#  define PIN_USI_SDA PINB0
+#  define PIN_USI_SCL PINB2
+#  define USI_START_VECTOR USI_START_vect
+#  define USI_OVERFLOW_VECTOR USI_OVF_vect
+#  define DDR_USI_CL DDR_USI
+#  define PORT_USI_CL PORT_USI
+#  define PIN_USI_CL PIN_USI
+#ifndef USI_START_COND_INT
+#  define USI_START_COND_INT USISIF
+#endif
+// END additions
+////////////////////
+
 #if defined( __AVR_ATtinyX313__ )
 #define PORT_A_ID 1
 #define PORT_B_ID 2
@@ -44,11 +64,10 @@
 #endif
 
 #if defined( __AVR_ATtinyX5__ )
-#define PORT_B_ID 1
-#endif
 
-#ifndef __AVR_ATtiny85__
-#define __AVR_ATtiny85__
+#define LED_BUILTIN PB1 // LED on Model A - Never seen Model B in the wild
+
+#define PORT_B_ID 1
 #endif
 
 #define NOT_A_PIN 0
@@ -81,9 +100,9 @@ extern const uint8_t PROGMEM digital_pin_to_timer_PGM[];
 #define digitalPinToTimer(P) ( pgm_read_byte( digital_pin_to_timer_PGM + (P) ) )
 #define analogInPinToBit(P) (P)
 // in the following lines modified pgm_read_word in pgm_read_byte, word doesn't work on attiny45
-#define portOutputRegister(P) ( (volatile uint8_t *)( pgm_read_byte( port_to_output_PGM + (P))) )
-#define portInputRegister(P) ( (volatile uint8_t *)( pgm_read_byte( port_to_input_PGM + (P))) )
-#define portModeRegister(P) ( (volatile uint8_t *)( pgm_read_byte( port_to_mode_PGM + (P))) )
+#define portOutputRegister(P) ( (volatile uint8_t *)( (uint16_t)pgm_read_byte( port_to_output_PGM + (P))) )
+#define portInputRegister(P) ( (volatile uint8_t *)( (uint16_t)pgm_read_byte( port_to_input_PGM + (P))) )
+#define portModeRegister(P) ( (volatile uint8_t *)( (uint16_t)pgm_read_byte( port_to_mode_PGM + (P))) )
 #define portPcMaskRegister(P) ( (volatile uint8_t *)( pgm_read_byte( port_to_pcmask_PGM + (P))) )
 
 #if defined(__AVR_ATtinyX5__)

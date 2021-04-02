@@ -89,25 +89,20 @@ volatile unsigned long millis_timer_millis = 0;
 static unsigned char millis_timer_fract = 0;
 
 // bluebie changed isr to noblock so it wouldn't mess up USB libraries
+// Keyboard example works without ISR_NOBLOCK :-)
+#if F_CPU == 16500000L // ISR_NOBLOCK only if V-USB will be used
 ISR(MILLISTIMER_OVF_vect, ISR_NOBLOCK)
+#else
+ISR(MILLISTIMER_OVF_vect)
+#endif
 {
   // copy these to local variables so they can be stored in registers
   // (volatile variables must be read from memory on every access)
   unsigned long m = millis_timer_millis;
   unsigned char f = millis_timer_fract;
 
-/* rmv: The code below generates considerably less code (emtpy Sketch is 326 versus 304)...
-
-  m += MILLIS_INC;
   f += FRACT_INC;
-  if (f >= FRACT_MAX) {
-    f -= FRACT_MAX;
-    m += 1;
-  }
-...rmv */
 
-  f += FRACT_INC;
-  
   if (f >= FRACT_MAX) 
   {
     f -= FRACT_MAX;
@@ -150,7 +145,7 @@ unsigned long micros()
     m++;
 
   SREG = oldSREG;
-  
+
 #if (MillisTimer_Prescale_Value >= clockCyclesPerMicrosecond())
   return ((m << 8) + t) * (MillisTimer_Prescale_Value / clockCyclesPerMicrosecond());
 #else
@@ -183,7 +178,7 @@ void delay(unsigned long ms)
   		// 11 nops
   		asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
   		asm("NOP");asm("NOP");asm("NOP");
-    
+
   		us -= 2;
   	}
   }
@@ -301,17 +296,22 @@ void init(void)
   // clock calibration stuff
   // recalibrate clock if it was calibrated by bootloader (like micronucleus)
   #if F_CPU != 16500000L
-    if (OSCCAL != read_factory_calibration()) {
-      // adjust the calibration down from 16.5mhz to 16.0mhz
-      if (OSCCAL >= 128) {
-        // maybe 8 is better? oh well - only about 0.3% out anyway
-        OSCCAL -= 7;
-      } else {
-        OSCCAL -= 5;
-      }
-    }
+    // On my Digispark board, micronucleus sets OSCCAL from 82 to 85 (or 58 to 5A) for 16.5 MHz.
+    // So do not use the rule of thumb below, since this will lead to a clock being too slow.
+    // (I only discovered it, because my serial did not worked with the original code).
+    // Restoring just the factory calibration value is more reliable!
+    OSCCAL = read_factory_calibration();
+//    if (OSCCAL != read_factory_calibration()) {
+//      // adjust the calibration down from 16.5mhz to 16.0mhz
+//      if (OSCCAL >= 128) {
+//        // maybe 8 is better? oh well - only about 0.3% out anyway
+//        OSCCAL -= 7;
+//      } else {
+//        OSCCAL -= 5;
+//      }
+//    }
   #endif
-    
+
   // TODO: detect if fuses set to PLL, regular internal oscillator or external and change behaviour in this next section...
   #if F_CPU < 16000000L
     cli();
@@ -334,7 +334,7 @@ void init(void)
       #warning "Cannot prescale chip to specified F_CPU speed"
     #endif
   #endif
-  
+
   // this needs to be called before setup() or some functions won't work there
   sei();
 

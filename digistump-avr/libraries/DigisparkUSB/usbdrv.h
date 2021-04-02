@@ -10,6 +10,7 @@
 
 #ifndef __usbdrv_h_included__
 #define __usbdrv_h_included__
+
 #include "usbconfig.h"
 #include "usbportability.h"
 
@@ -163,6 +164,17 @@ USB messages, even if they address another (low-speed) device on the same bus.
  */
 #define USB_NO_MSG  ((usbMsgLen_t)-1)   /* constant meaning "no message" */
 
+#ifndef usbMsgPtr_t
+#define usbMsgPtr_t uchar *
+#endif
+/* Making usbMsgPtr_t a define allows the user of this library to define it to
+ * an 8 bit type on tiny devices. This reduces code size, especially if the
+ * compiler supports a tiny memory model.
+ * The type can be a pointer or scalar type, casts are made where necessary.
+ * Although it's paradoxical, Gcc 4 generates slightly better code for scalar
+ * types than for pointers.
+ */
+ 
 struct usbRequest;  /* forward declaration */
 
 #ifdef __cplusplus
@@ -175,9 +187,6 @@ USB_PUBLIC void usbInit(void);
  * them, set both back to 0 (configure them as input with no internal pull-up).
  */
 USB_PUBLIC void usbPoll(void);
-#ifdef __cplusplus
-} // extern "C"
-#endif
 /* This function must be called at regular intervals from the main loop.
  * Maximum delay between calls is somewhat less than 50ms (USB timeout for
  * accepting a Setup message). Otherwise the device will not be recognized.
@@ -189,13 +198,16 @@ extern uchar *usbMsgPtr;
  * implementation of usbFunctionWrite(). It is also used internally by the
  * driver for standard control requests.
  */
-#ifdef __cplusplus
-extern "C"{
-#endif
+ 
+ extern uchar usbMsgFlags;    /* flag values see USB_FLG_* */
+/* Can be set to `USB_FLG_MSGPTR_IS_ROM` in `usbFunctionSetup()` or
+ * `usbFunctionDescriptor()` if `usbMsgPtr` has been set to a flash memory
+ * address.
+ */
+ 
+ #define USB_FLG_MSGPTR_IS_ROM   (1<<6)
+ 
 USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8]);
-#ifdef __cplusplus
-} // extern "C"
-#endif
 /* This function is called when the driver receives a SETUP transaction from
  * the host which is not answered by the driver itself (in practice: class and
  * vendor requests). All control transfers start with a SETUP transaction where
@@ -223,19 +235,14 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8]);
  * are only done if enabled by the configuration in usbconfig.h.
  */
 USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(struct usbRequest *rq);
+
 /* You need to implement this function ONLY if you provide USB descriptors at
  * runtime (which is an expert feature). It is very similar to
  * usbFunctionSetup() above, but it is called only to request USB descriptor
  * data. See the documentation of usbFunctionSetup() above for more info.
  */
 #if USB_CFG_HAVE_INTRIN_ENDPOINT
-#ifdef __cplusplus
-extern "C"{
-#endif
 USB_PUBLIC void usbSetInterrupt(uchar *data, uchar len);
-#ifdef __cplusplus
-} // extern "C"
-#endif
 /* This function sets the message which will be sent during the next interrupt
  * IN transfer. The message is copied to an internal buffer and must not exceed
  * a length of 8 bytes. The message may be 0 bytes long just to indicate the
@@ -247,11 +254,11 @@ USB_PUBLIC void usbSetInterrupt(uchar *data, uchar len);
  * sent. If you set a new interrupt message before the old was sent, the
  * message already buffered will be lost.
  */
-#if USB_CFG_HAVE_INTRIN_ENDPOINT3
+#  if USB_CFG_HAVE_INTRIN_ENDPOINT3
 USB_PUBLIC void usbSetInterrupt3(uchar *data, uchar len);
 #define usbInterruptIsReady3()   (usbTxLen3 & 0x10)
 /* Same as above for endpoint 3 */
-#endif
+#  endif
 #endif /* USB_CFG_HAVE_INTRIN_ENDPOINT */
 #if USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH    /* simplified interface for backward compatibility */
 #define usbHidReportDescriptor  usbDescriptorHidReport
@@ -264,13 +271,7 @@ USB_PUBLIC void usbSetInterrupt3(uchar *data, uchar len);
  */
 #endif  /* USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH */
 #if USB_CFG_IMPLEMENT_FN_WRITE
-#ifdef __cplusplus
-extern "C"{
-#endif
 USB_PUBLIC uchar usbFunctionWrite(uchar *data, uchar len);
-#ifdef __cplusplus
-} // extern "C"
-#endif
 /* This function is called by the driver to provide a control transfer's
  * payload data (control-out). It is called in chunks of up to 8 bytes. The
  * total count provided in the current control transfer can be obtained from
@@ -288,13 +289,7 @@ USB_PUBLIC uchar usbFunctionWrite(uchar *data, uchar len);
  */
 #endif /* USB_CFG_IMPLEMENT_FN_WRITE */
 #if USB_CFG_IMPLEMENT_FN_READ
-#ifdef __cplusplus
-extern "C"{
-#endif
 USB_PUBLIC uchar usbFunctionRead(uchar *data, uchar len);
-#ifdef __cplusplus
-} // extern "C"
-#endif
 /* This function is called by the driver to ask the application for a control
  * transfer's payload data (control-in). It is called in chunks of up to 8
  * bytes each. You should copy the data to the location given by 'data' and
@@ -315,6 +310,9 @@ USB_PUBLIC void usbFunctionWriteOut(uchar *data, uchar len);
  * usbconfig.h to get this function called.
  */
 #endif /* USB_CFG_IMPLEMENT_FN_WRITEOUT */
+#ifdef __cplusplus
+} // extern "C"
+#endif
 #ifdef USB_CFG_PULLUP_IOPORTNAME
 #define usbDeviceConnect()      ((USB_PULLUP_DDR |= (1<<USB_CFG_PULLUP_BIT)), \
                                   (USB_PULLUP_OUT |= (1<<USB_CFG_PULLUP_BIT)))
@@ -357,7 +355,7 @@ extern unsigned usbCrc16Append(unsigned data, uchar len);
  * bytes.
  */
 #if USB_CFG_HAVE_MEASURE_FRAME_LENGTH
-extern unsigned usbMeasureFrameLength(void);
+extern unsigned usbMeasureFrameLength(void); // defined in usbdrvasm.S
 /* This function MUST be called IMMEDIATELY AFTER USB reset and measures 1/7 of
  * the number of CPU cycles during one USB frame minus one low speed bit
  * length. In other words: return value = 1499 * (F_CPU / 10.5 MHz)
@@ -503,7 +501,7 @@ extern
 #if !(USB_CFG_DESCR_PROPS_HID_REPORT & USB_PROP_IS_RAM)
 const PROGMEM
 #endif
-char usbDescriptorHidReport[];
+uchar usbDescriptorHidReport[];
 #ifdef __cplusplus
 } // extern "C"
 #endif
@@ -605,65 +603,6 @@ int usbDescriptorStringSerialNumber[];
 #endif
 
 #define USB_BUFSIZE     11  /* PID, 8 bytes data, 2 bytes CRC */
-
-/* ----- Try to find registers and bits responsible for ext interrupt 0 ----- */
-
-#ifndef USB_INTR_CFG    /* allow user to override our default */
-#   if defined  EICRA
-#       define USB_INTR_CFG EICRA
-#   else
-#       define USB_INTR_CFG MCUCR
-#   endif
-#endif
-#ifndef USB_INTR_CFG_SET    /* allow user to override our default */
-#   if defined(USB_COUNT_SOF) || defined(USB_SOF_HOOK)
-#       define USB_INTR_CFG_SET (1 << ISC01)                    /* cfg for falling edge */
-        /* If any SOF logic is used, the interrupt must be wired to D- where
-         * we better trigger on falling edge
-         */
-#   else
-#       define USB_INTR_CFG_SET ((1 << ISC00) | (1 << ISC01))   /* cfg for rising edge */
-#   endif
-#endif
-#ifndef USB_INTR_CFG_CLR    /* allow user to override our default */
-#   define USB_INTR_CFG_CLR 0    /* no bits to clear */
-#endif
-
-#ifndef USB_INTR_ENABLE     /* allow user to override our default */
-#   if defined GIMSK
-#       define USB_INTR_ENABLE  GIMSK
-#   elif defined EIMSK
-#       define USB_INTR_ENABLE  EIMSK
-#   else
-#       define USB_INTR_ENABLE  GICR
-#   endif
-#endif
-#ifndef USB_INTR_ENABLE_BIT /* allow user to override our default */
-#   define USB_INTR_ENABLE_BIT  INT0
-#endif
-
-#ifndef USB_INTR_PENDING    /* allow user to override our default */
-#   if defined  EIFR
-#       define USB_INTR_PENDING EIFR
-#   else
-#       define USB_INTR_PENDING GIFR
-#   endif
-#endif
-#ifndef USB_INTR_PENDING_BIT    /* allow user to override our default */
-#   define USB_INTR_PENDING_BIT INTF0
-#endif
-
-/*
-The defines above don't work for the following chips
-at90c8534: no ISC0?, no PORTB, can't find a data sheet
-at86rf401: no PORTB, no MCUCR etc, low clock rate
-atmega103: no ISC0? (maybe omission in header, can't find data sheet)
-atmega603: not defined in avr-libc
-at43usb320, at43usb355, at76c711: have USB anyway
-at94k: is different...
-
-at90s1200, attiny11, attiny12, attiny15, attiny28: these have no RAM
-*/
 
 /* ------------------------------------------------------------------------- */
 /* ----------------- USB Specification Constants and Types ----------------- */

@@ -47,9 +47,8 @@ uchar       usbCurrentDataToken;/* when we check data toggling to ignore duplica
 /* USB status registers / not shared with asm code */
 uchar               *usbMsgPtr;     /* data to transmit next -- ROM or RAM address */
 static usbMsgLen_t  usbMsgLen = USB_NO_MSG; /* remaining number of bytes */
-static uchar        usbMsgFlags;    /* flag values see below */
+uchar        usbMsgFlags;    /* flag values see USB_FLG_* */
 
-#define USB_FLG_MSGPTR_IS_ROM   (1<<6)
 #define USB_FLG_USE_USER_RW     (1<<7)
 
 /*
@@ -67,7 +66,7 @@ optimizing hints:
 #if USB_CFG_DESCR_PROPS_STRING_0 == 0
 #undef USB_CFG_DESCR_PROPS_STRING_0
 #define USB_CFG_DESCR_PROPS_STRING_0    sizeof(usbDescriptorString0)
-PROGMEM char const usbDescriptorString0[] = { /* language descriptor */
+const PROGMEM char usbDescriptorString0[] = { /* language descriptor */
     4,          /* sizeof(usbDescriptorString0): length of descriptor in bytes */
     3,          /* descriptor type */
     0x09, 0x04, /* language index (0x0409 = US-English) */
@@ -77,7 +76,7 @@ PROGMEM char const usbDescriptorString0[] = { /* language descriptor */
 #if USB_CFG_DESCR_PROPS_STRING_VENDOR == 0 && USB_CFG_VENDOR_NAME_LEN
 #undef USB_CFG_DESCR_PROPS_STRING_VENDOR
 #define USB_CFG_DESCR_PROPS_STRING_VENDOR   sizeof(usbDescriptorStringVendor)
-PROGMEM int  const usbDescriptorStringVendor[] = {
+const PROGMEM int  usbDescriptorStringVendor[] = {
     USB_STRING_DESCRIPTOR_HEADER(USB_CFG_VENDOR_NAME_LEN),
     USB_CFG_VENDOR_NAME
 };
@@ -86,7 +85,7 @@ PROGMEM int  const usbDescriptorStringVendor[] = {
 #if USB_CFG_DESCR_PROPS_STRING_PRODUCT == 0 && USB_CFG_DEVICE_NAME_LEN
 #undef USB_CFG_DESCR_PROPS_STRING_PRODUCT
 #define USB_CFG_DESCR_PROPS_STRING_PRODUCT   sizeof(usbDescriptorStringDevice)
-PROGMEM int  const usbDescriptorStringDevice[] = {
+const PROGMEM int  usbDescriptorStringDevice[] = {
     USB_STRING_DESCRIPTOR_HEADER(USB_CFG_DEVICE_NAME_LEN),
     USB_CFG_DEVICE_NAME
 };
@@ -95,7 +94,7 @@ PROGMEM int  const usbDescriptorStringDevice[] = {
 #if USB_CFG_DESCR_PROPS_STRING_SERIAL_NUMBER == 0 && USB_CFG_SERIAL_NUMBER_LEN
 #undef USB_CFG_DESCR_PROPS_STRING_SERIAL_NUMBER
 #define USB_CFG_DESCR_PROPS_STRING_SERIAL_NUMBER    sizeof(usbDescriptorStringSerialNumber)
-PROGMEM int const usbDescriptorStringSerialNumber[] = {
+const PROGMEM int usbDescriptorStringSerialNumber[] = {
     USB_STRING_DESCRIPTOR_HEADER(USB_CFG_SERIAL_NUMBER_LEN),
     USB_CFG_SERIAL_NUMBER
 };
@@ -108,7 +107,7 @@ PROGMEM int const usbDescriptorStringSerialNumber[] = {
 #if USB_CFG_DESCR_PROPS_DEVICE == 0
 #undef USB_CFG_DESCR_PROPS_DEVICE
 #define USB_CFG_DESCR_PROPS_DEVICE  sizeof(usbDescriptorDevice)
-PROGMEM char const usbDescriptorDevice[] = {    /* USB device descriptor */
+const PROGMEM char usbDescriptorDevice[] = {    /* USB device descriptor */
     18,         /* sizeof(usbDescriptorDevice): length of descriptor in bytes */
     USBDESCR_DEVICE,        /* descriptor type */
     0x10, 0x01,             /* USB version supported */
@@ -139,7 +138,7 @@ PROGMEM char const usbDescriptorDevice[] = {    /* USB device descriptor */
 #if USB_CFG_DESCR_PROPS_CONFIGURATION == 0
 #undef USB_CFG_DESCR_PROPS_CONFIGURATION
 #define USB_CFG_DESCR_PROPS_CONFIGURATION   sizeof(usbDescriptorConfiguration)
-PROGMEM const char usbDescriptorConfiguration[] = {    /* USB configuration descriptor */
+const PROGMEM char usbDescriptorConfiguration[] = {    /* USB configuration descriptor */
     9,          /* sizeof(usbDescriptorConfiguration): length of descriptor in bytes */
     USBDESCR_CONFIG,    /* descriptor type */
     18 + 7 * USB_CFG_HAVE_INTRIN_ENDPOINT + 7 * USB_CFG_HAVE_INTRIN_ENDPOINT3 +
@@ -184,7 +183,7 @@ PROGMEM const char usbDescriptorConfiguration[] = {    /* USB configuration desc
 #if USB_CFG_HAVE_INTRIN_ENDPOINT3   /* endpoint descriptor for endpoint 3 */
     7,          /* sizeof(usbDescrEndpoint) */
     USBDESCR_ENDPOINT,  /* descriptor type = endpoint */
-    (char)0x83, /* IN endpoint number 1 */
+    (char)(0x80 | USB_CFG_EP3_NUMBER), /* IN endpoint number 3 */
     0x03,       /* attrib: Interrupt endpoint */
     8, 0,       /* maximum packet size */
     USB_CFG_INTR_POLL_INTERVAL, /* in ms */
@@ -335,6 +334,9 @@ uchar       flags = USB_FLG_MSGPTR_IS_ROM;
             GET_DESCRIPTOR(USB_CFG_DESCR_PROPS_STRING_SERIAL_NUMBER, usbDescriptorStringSerialNumber)
         SWITCH_DEFAULT
             if(USB_CFG_DESCR_PROPS_UNKNOWN & USB_PROP_IS_DYNAMIC){
+                if(USB_CFG_DESCR_PROPS_UNKNOWN & USB_PROP_IS_RAM){
+                    flags = 0;
+                }            	
                 len = usbFunctionDescriptor(rq);
             }
         SWITCH_END
@@ -347,6 +349,9 @@ uchar       flags = USB_FLG_MSGPTR_IS_ROM;
 #endif
     SWITCH_DEFAULT
         if(USB_CFG_DESCR_PROPS_UNKNOWN & USB_PROP_IS_DYNAMIC){
+                if(USB_CFG_DESCR_PROPS_UNKNOWN & USB_PROP_IS_RAM){
+                    flags = 0;
+                }  
             len = usbFunctionDescriptor(rq);
         }
     SWITCH_END
@@ -498,7 +503,8 @@ static uchar usbDeviceRead(uchar *data, uchar len)
         }else
 #endif
         {
-            uchar i = len, *r = usbMsgPtr;
+            uchar i = len;
+            usbMsgPtr_t r = usbMsgPtr;
             if(usbMsgFlags & USB_FLG_MSGPTR_IS_ROM){    /* ROM data */
                 do{
                     uchar c = USB_READ_FLASH(r);    /* assign to char size variable to enforce byte ops */

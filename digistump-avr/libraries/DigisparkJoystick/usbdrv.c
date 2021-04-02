@@ -45,11 +45,10 @@ uchar       usbCurrentDataToken;/* when we check data toggling to ignore duplica
 #endif
 
 /* USB status registers / not shared with asm code */
-const uchar               *usbMsgPtr;     /* data to transmit next -- ROM or RAM address */
+uchar               *usbMsgPtr;     /* data to transmit next -- ROM or RAM address */
 static usbMsgLen_t  usbMsgLen = USB_NO_MSG; /* remaining number of bytes */
-static uchar        usbMsgFlags;    /* flag values see below */
+uchar        usbMsgFlags;    /* flag values see USB_FLG_* */
 
-#define USB_FLG_MSGPTR_IS_ROM   (1<<6)
 #define USB_FLG_USE_USER_RW     (1<<7)
 
 /*
@@ -184,7 +183,7 @@ const PROGMEM char usbDescriptorConfiguration[] = {    /* USB configuration desc
 #if USB_CFG_HAVE_INTRIN_ENDPOINT3   /* endpoint descriptor for endpoint 3 */
     7,          /* sizeof(usbDescrEndpoint) */
     USBDESCR_ENDPOINT,  /* descriptor type = endpoint */
-    (char)0x83, /* IN endpoint number 1 */
+    (char)(0x80 | USB_CFG_EP3_NUMBER), /* IN endpoint number 3 */
     0x03,       /* attrib: Interrupt endpoint */
     8, 0,       /* maximum packet size */
     USB_CFG_INTR_POLL_INTERVAL, /* in ms */
@@ -335,6 +334,9 @@ uchar       flags = USB_FLG_MSGPTR_IS_ROM;
             GET_DESCRIPTOR(USB_CFG_DESCR_PROPS_STRING_SERIAL_NUMBER, usbDescriptorStringSerialNumber)
         SWITCH_DEFAULT
             if(USB_CFG_DESCR_PROPS_UNKNOWN & USB_PROP_IS_DYNAMIC){
+                if(USB_CFG_DESCR_PROPS_UNKNOWN & USB_PROP_IS_RAM){
+                    flags = 0;
+                }            	
                 len = usbFunctionDescriptor(rq);
             }
         SWITCH_END
@@ -347,6 +349,9 @@ uchar       flags = USB_FLG_MSGPTR_IS_ROM;
 #endif
     SWITCH_DEFAULT
         if(USB_CFG_DESCR_PROPS_UNKNOWN & USB_PROP_IS_DYNAMIC){
+                if(USB_CFG_DESCR_PROPS_UNKNOWN & USB_PROP_IS_RAM){
+                    flags = 0;
+                }  
             len = usbFunctionDescriptor(rq);
         }
     SWITCH_END
@@ -498,7 +503,8 @@ static uchar usbDeviceRead(uchar *data, uchar len)
         }else
 #endif
         {
-            uchar i = len, *r = usbMsgPtr;
+            uchar i = len;
+            usbMsgPtr_t r = usbMsgPtr;
             if(usbMsgFlags & USB_FLG_MSGPTR_IS_ROM){    /* ROM data */
                 do{
                     uchar c = USB_READ_FLASH(r);    /* assign to char size variable to enforce byte ops */
