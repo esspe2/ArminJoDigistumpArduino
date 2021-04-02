@@ -1,9 +1,13 @@
 #include <avr/pgmspace.h>
 // Lookup table to convert ascii characters in to keyboard scan codes
 // Format: most signifficant bit indicates if scan code should be sent with shift modifier
-// remaining 7 bits are to be used as scan code number.
+//  next most significant bit is used for AltGr modifier
+// remaining 6 bits are to be used as scan code number.
+// scan codes correspond to the key position as if it were an US 104 keyboard
+
 #define Shift 0x80
 #define AltGr 0x40
+
 const unsigned char ascii_to_scan_code_table[] PROGMEM = {
   //      ASCII	Code	  HID Usage	Key pos on a US Keyboard
   // /* ASCII: 0  	*/ 0,
@@ -14,9 +18,9 @@ const unsigned char ascii_to_scan_code_table[] PROGMEM = {
   // /* ASCII: 5  	*/ 0,
   // /* ASCII: 6  	*/ 0,
   // /* ASCII: 7  	*/ 0,
-  /* ASCII:   8  BS	*/ 0x2a,	// BS	42,	// backspace
-  /* ASCII:   9  TAB	*/ 0x2b,	// HT	43,	// HT  '\t' (horizontal tab)
-  /* ASCII:  10  LF 	*/ 0x28,	// LF 0,
+  /* ASCII:   8  BS	*/ 0x2a,	// BS
+  /* ASCII:   9  TAB	*/ 0x2b,	// HT
+  /* ASCII:  10  LF 	*/ 0x28,	// LF
   /* ASCII:  11  	*/ 0,
   /* ASCII:  12  	*/ 0,
   /* ASCII:  13  	*/ 0,
@@ -33,7 +37,7 @@ const unsigned char ascii_to_scan_code_table[] PROGMEM = {
   /* ASCII:  24  	*/ 0,
   /* ASCII:  25  	*/ 0,
   /* ASCII:  26  	*/ 0,
-  /* ASCII:  27  ESC	*/ 0x29,	// ESC 41,
+  /* ASCII:  27  ESC	*/ 0x29,	// ESC
   /* ASCII:  28  	*/ 0,
   /* ASCII:  29  	*/ 0,
   /* ASCII:  30  	*/ 0,
