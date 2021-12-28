@@ -6,7 +6,13 @@
 # https://github.com/arduino/Arduino/wiki/Arduino-IDE-1.5---3rd-party-Hardware-specification
 
 name=Digistump AVR Boards
-version=1.7.1
+versionnum.major=1
+versionnum.minor=7
+versionnum.patch=5
+
+version={versionnum.major}.{versionnum.minor}.{versionnum.patch}
+
+build.versiondefines=-DARDUINO={runtime.ide.version} -DARDUINO_{build.board} -DARDUINO_ARCH_{build.arch} -DDIGISTUMPCORE="{version}" -DDIGISTUMPCORE_MAJOR={versionnum.major}UL -DDIGISTUMPCORE_MINOR={versionnum.minor}UL -DDIGISTUMPCORE_PATCH={versionnum.patch}UL
 
 # AVR compile variables
 # --------------------- 
@@ -49,13 +55,13 @@ compiler.elf2hex.extra_flags=
 # --------------------
 
 ## Compile c files
-recipe.c.o.pattern="{compiler.path}{compiler.c.cmd}" {compiler.c.flags} -mmcu={build.mcu} -DF_CPU={build.f_cpu} -DSERIAL_BUFFER_SIZE={build.SerialBufferSize} -DARDUINO={runtime.ide.version} -DARDUINO_{build.board} -DARDUINO_ARCH_{build.arch} {compiler.c.extra_flags} {build.extra_flags} {includes} "{source_file}" -o "{object_file}"
+recipe.c.o.pattern="{compiler.path}{compiler.c.cmd}" {compiler.c.flags} -mmcu={build.mcu} -DF_CPU={build.f_cpu} -DSERIAL_BUFFER_SIZE={build.SerialBufferSize} -DARDUINO={runtime.ide.version} -DARDUINO_{build.board} -DARDUINO_ARCH_{build.arch} {build.versiondefines} {compiler.c.extra_flags} {build.extra_flags} {includes} "{source_file}" -o "{object_file}"
 
 ## Compile c++ files
-recipe.cpp.o.pattern="{compiler.path}{compiler.cpp.cmd}" {compiler.cpp.flags} -mmcu={build.mcu} -DF_CPU={build.f_cpu} -DSERIAL_BUFFER_SIZE={build.SerialBufferSize} -DARDUINO={runtime.ide.version} -DARDUINO_{build.board} -DARDUINO_ARCH_{build.arch} {compiler.cpp.extra_flags} {build.extra_flags} {includes} "{source_file}" -o "{object_file}"
+recipe.cpp.o.pattern="{compiler.path}{compiler.cpp.cmd}" {compiler.cpp.flags} -mmcu={build.mcu} -DF_CPU={build.f_cpu} -DSERIAL_BUFFER_SIZE={build.SerialBufferSize} -DARDUINO={runtime.ide.version} -DARDUINO_{build.board} -DARDUINO_ARCH_{build.arch} {build.versiondefines} {compiler.cpp.extra_flags} {build.extra_flags} {includes} "{source_file}" -o "{object_file}"
 
 ## Compile S files
-recipe.S.o.pattern="{compiler.path}{compiler.c.cmd}" {compiler.S.flags} -mmcu={build.mcu} -DF_CPU={build.f_cpu} -DSERIAL_BUFFER_SIZE={build.SerialBufferSize} -DARDUINO={runtime.ide.version} -DARDUINO_{build.board} -DARDUINO_ARCH_{build.arch} {compiler.S.extra_flags} {build.extra_flags} {includes} "{source_file}" -o "{object_file}"
+recipe.S.o.pattern="{compiler.path}{compiler.c.cmd}" {compiler.S.flags} -mmcu={build.mcu} -DF_CPU={build.f_cpu} -DSERIAL_BUFFER_SIZE={build.SerialBufferSize} -DARDUINO={runtime.ide.version} -DARDUINO_{build.board} -DARDUINO_ARCH_{build.arch} {build.versiondefines} {compiler.S.extra_flags} {build.extra_flags} {includes} "{source_file}" -o "{object_file}"
 
 ## Create archives
 recipe.ar.pattern="{compiler.path}{compiler.ar.cmd}" {compiler.ar.flags} "{archive_file_path}" "{object_file}"
@@ -116,6 +122,7 @@ tools.avrdude.bootloader.pattern=
 # Micronucleus Loader
 # ------------------------------
 tools.micronucleus.cmd.path={runtime.tools.micronucleus.path}/micronucleus
+tools.micronucleus_info.cmd.path={runtime.tools.micronucleus.path}/micronucleus
 
 tools.micronucleus.upload.params.verbose=
 tools.micronucleus.upload.params.quiet=
@@ -129,6 +136,13 @@ tools.micronucleus.erase.params.verbose=
 tools.micronucleus.erase.params.quiet=
 tools.micronucleus.erase.pattern=
 
+tools.micronucleus_info.bootloader.params.verbose=
+tools.micronucleus_info.bootloader.params.quiet=
+tools.micronucleus_info.bootloader.pattern="{cmd.path}" --no-ansi --info --timeout 60
+
+tools.micronucleus_info.erase.params.verbose=
+tools.micronucleus_info.erase.params.quiet=
+tools.micronucleus_info.erase.pattern=
 
 # USB Default Flags
 # Default blank usb manufacturer will be filled in at compile time
